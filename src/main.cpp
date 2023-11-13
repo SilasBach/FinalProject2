@@ -17,6 +17,9 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "SPIFFS.h"
+#include <string>
+
+bool intervalChanged = false; // Flag to indicate if the interval has changed
 
 // Data wire is connected to GPIO 4
 #define ONE_WIRE_BUS 4
@@ -30,14 +33,15 @@ DallasTemperature sensors(&oneWire);
 // Variables to store temperature values
 String temperatureF = "";
 String temperatureC = "";
+float temperatureCFloat;
 
 // Timer variables
 unsigned long lastTime = 0;
-unsigned long timerDelay = 3000;
+unsigned long timerDelay = 10000;
 
 // Replace with your network credentials
-const char *ssid = "E308";
-const char *password = "98806829";
+const char *ssid = "TN-EK6975";
+const char *password = "RootjoHoxic3";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -57,27 +61,9 @@ String readDSTemperatureC()
   {
     Serial.print("Temperature Celsius: ");
     Serial.println(tempC);
+    temperatureCFloat = tempC;
   }
   return String(tempC);
-}
-
-String readDSTemperatureF()
-{
-  // Call sensors.requestTemperatures() to issue a global temperature and Requests to all devices on the bus
-  sensors.requestTemperatures();
-  float tempF = sensors.getTempFByIndex(0);
-
-  if (int(tempF) == -196)
-  {
-    Serial.println("Failed to read from DS18B20 sensor");
-    return "--";
-  }
-  else
-  {
-    Serial.print("Temperature Fahrenheit: ");
-    Serial.println(tempF);
-  }
-  return String(tempF);
 }
 
 // Replaces placeholder with DS18B20 values
@@ -88,10 +74,6 @@ String processor(const String &var)
   {
     return temperatureC;
   }
-  else if (var == "TEMPERATUREF")
-  {
-    return temperatureF;
-  }
   return String();
 }
 
@@ -100,18 +82,18 @@ void setup()
   // Serial port for debugging purposes
   Serial.begin(115200);
 
-  if (!SPIFFS.begin())
+  if (!SPIFFS.begin(true))
   {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+
   Serial.println();
 
   // Start up the DS18B20 library
   sensors.begin();
 
   temperatureC = readDSTemperatureC();
-  temperatureF = readDSTemperatureF();
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -127,27 +109,46 @@ void setup()
   Serial.println(WiFi.localIP());
 
   // Route for root / web page
-  server.on("/temperaturec", HTTP_GET, [](AsyncWebServerRequest *request)
-            {
-  String response = "{ \"time\": " + String(millis()) + ", \"temperature\": " + String(temperatureC) + " }";
-  request->send(200, "application/json", response); });
-  server.on("/temperaturef", HTTP_GET, [](AsyncWebServerRequest *request)
-            {
-  String response = "{ \"time\": " + String(millis()) + ", \"temperature\": " + String(temperatureF) + " }";
-  request->send(200, "application/json", response); });
-
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index.html", String(), false, processor); });
+  server.on("/temperaturec", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(200, "text/plain", temperatureC.c_str()); });
+  server.on("/getInterval", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+              request->send(200, "text/plain", String(timerDelay / 1000.0)); // send interval in seconds
+            });
+
+  server.on("/increaseInterval", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+  timerDelay += 10000; // Increase interval by 10 seconds
+  intervalChanged = true; // Set the flag
+  request->send(200, "text/plain", "Interval increased"); });
+
+  server.on("/decreaseInterval", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+  if (timerDelay > 10000) { // Prevent interval from going below 10 seconds
+    timerDelay -= 10000; // Decrease interval by 10 seconds
+    intervalChanged = true; // Set the flag
+  }
+  request->send(200, "text/plain", "Interval decreased"); });
   // Start server
   server.begin();
 }
 
 void loop()
 {
-  if ((millis() - lastTime) > timerDelay)
+  // Check if the interval has changed or the timer has elapsed
+  if (intervalChanged || (millis() - lastTime > timerDelay))
   {
-    temperatureC = readDSTemperatureC();
-    temperatureF = readDSTemperatureF();
-    lastTime = millis();
+    if (intervalChanged)
+    {
+      intervalChanged = false; // Reset the flag
+      lastTime = millis();     // Reset the timer
+    }
+    else
+    {
+      temperatureC = readDSTemperatureC(); // Update the temperature
+      lastTime = millis();                 // Reset the timer
+    }
   }
 }

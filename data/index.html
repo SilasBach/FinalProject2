@@ -1,13 +1,10 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
 
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
-        integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script
-        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+        integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous" />
     <style>
         html {
             font-family: Arial;
@@ -17,11 +14,11 @@
         }
 
         h2 {
-            font-size: 3.0rem;
+            font-size: 3rem;
         }
 
         p {
-            font-size: 3.0rem;
+            font-size: 3rem;
         }
 
         .units {
@@ -39,102 +36,135 @@
 <body>
     <h2>ESP DS18B20 Server</h2>
     <p>
-        <i class="fas fa-thermometer-half" style="color:#059e8a;"></i>
+        <i class="fas fa-thermometer-half" style="color: #059e8a"></i>
         <span class="ds-labels">Temperature Celsius</span>
         <span id="temperaturec">%TEMPERATUREC%</span>
         <sup class="units">&deg;C</sup>
     </p>
-    <p>
-        <i class="fas fa-thermometer-half" style="color:#059e8a;"></i>
-        <span class="ds-labels">Temperature Fahrenheit</span>
-        <span id="temperaturef">%TEMPERATUREF%</span>
-        <sup class="units">&deg;F</sup>
-    </p>
-    <canvas id="temperatureChart"></canvas>
-    <script>
-        var ctx = document.getElementById('temperatureChart').getContext('2d');
-        var temperatureChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [], // This will be updated with the time
-                datasets: [{
-                    label: 'Temperature (Celsius)',
-                    data: [], // This will be updated with the Celsius readings
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    fill: false
-                },
-                {
-                    label: 'Temperature (Fahrenheit)',
-                    data: [], // This will be updated with the Fahrenheit readings
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    fill: false
-                }]
-            },
-            options: {
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            unit: 'minute'
-                        }
-                    },
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        // Function to update the chart with new data
-        function addData(chart, label, data, datasetIndex) {
-            chart.data.labels.push(label);
-            chart.data.datasets[datasetIndex].data.push(data);
-            chart.update();
-        }
-
-        // TODO: Call the addData function with the time and temperature readings
-        setInterval(function () {
-            var xhttp = new XMLHttpRequest();
-            xhttp.onreadystatechange = function () {
-                if (this.readyState == 4 && this.status == 200) {
-                    document.getElementById("temperaturec").innerHTML = this.responseText;
-                    // Add data to the chart
-                    var temperature = parseFloat(this.responseText); // Parse the response as a number
-                    var time = new Date(); // Get the current time
-                    // For Celsius readings
-                    if (this.readyState == 4 && this.status == 200) {
-                        var response = JSON.parse(this.responseText);
-                        var time = new Date();
-                        var temperature = parseFloat(response.temperature);
-                        addData(temperatureChart, time, temperature, 0);
-                    }
-
-                }
-            };
-            xhttp.open("GET", "/temperaturec", true);
-            xhttp.send();
-        }, 10000);
-        setInterval(function () {
-            var xhttp = new XMLHttpRequest();
-            xhttp.onreadystatechange = function () {
-                if (this.readyState == 4 && this.status == 200) {
-                    document.getElementById("temperaturef").innerHTML = this.responseText;
-                    // Add data to the chart
-                    var temperature = parseFloat(this.responseText); // Parse the response as a number
-                    var time = new Date(); // Get the current time
-                    // For Fahrenheit readings
-                    if (this.readyState == 4 && this.status == 200) {
-                        var response = JSON.parse(this.responseText);
-                        var time = new Date();
-                        var temperature = parseFloat(response.temperature);
-                        addData(temperatureChart, time, temperature, 1);
-                    }
-                }
-            };
-            xhttp.open("GET", "/temperaturef", true);
-            xhttp.send();
-        }, 10000);
-    </script>
+    <p id="intervalDisplay">Interval: </p>
+    <button id="increaseInterval">Increase Interval</button>
+    <button id="decreaseInterval">Decrease Interval</button>
+    <button id="resetButton">Reset</button>
+    <div style="width: 80%; margin: 0 auto">
+        <canvas id="temperatureChart"></canvas>
+    </div>
 </body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Create an empty array to store temperature data
+    var temperatureData = [];
+
+    // Function to update the chart with new data
+    function updateChart(chart, newData) {
+        chart.data.labels.push(new Date().toLocaleTimeString());
+        chart.data.datasets.forEach((dataset) => {
+            dataset.data.push(newData);
+        });
+        chart.update();
+    }
+
+    // Create the temperature chart
+    var ctx = document.getElementById("temperatureChart").getContext("2d");
+    var temperatureChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: "Temperature (C)",
+                    data: [],
+                    borderColor: "#059e8a",
+                    borderWidth: 2,
+                    fill: false,
+                },
+            ],
+        },
+        options: {
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: "Time",
+                    },
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: "Temperature (C)",
+                    },
+                },
+            },
+        },
+    });
+
+    var updateInterval = 10000; // initial interval of 10 seconds
+
+    // Event listener for increasing the interval
+    document.getElementById("increaseInterval").addEventListener("click", function () {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "/increaseInterval", true);
+        xhttp.send();
+    });
+
+    // Event listener for decreasing the interval
+    document.getElementById("decreaseInterval").addEventListener("click", function () {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "/decreaseInterval", true);
+        xhttp.send();
+    });
+
+    document.getElementById("resetButton").addEventListener("click", function () {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "/resetInterval", true);
+        xhttp.send();
+
+        // Reset chart data
+        temperatureChart.data.labels = [];
+        temperatureChart.data.datasets.forEach((dataset) => {
+            dataset.data = [];
+        });
+        temperatureChart.update();
+    });
+
+    function updateData() {
+        // Fetch temperature data and update the chart
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                var tempC = parseFloat(this.responseText);
+                document.getElementById("temperaturec").innerHTML = tempC;
+                updateChart(temperatureChart, tempC);
+            }
+        };
+        xhttp.open("GET", "/temperaturec", true);
+        xhttp.send();
+
+        // Fetch current interval and update the display
+        var intervalXhttp = new XMLHttpRequest();
+        intervalXhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("intervalDisplay").innerHTML = "Interval: " + this.responseText + " seconds";
+                updateInterval = parseFloat(this.responseText) * 1000; // update the interval variable
+            }
+        };
+        intervalXhttp.open("GET", "/getInterval", true);
+        intervalXhttp.send();
+
+        // Call this function again after the updated interval
+        setTimeout(updateData, updateInterval);
+        var table = document.getElementById("temperatureTable").getElementsByTagName('tbody')[0];
+        var newRow = table.insertRow();
+        var newCell1 = newRow.insertCell(0);
+        var newCell2 = newRow.insertCell(1);
+        newCell1.innerHTML = new Date().toLocaleTimeString();
+        newCell2.innerHTML = tempC;
+    }
+
+
+    // Start the data updates
+    updateData();
+</script>
 
 </html>
