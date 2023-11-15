@@ -18,6 +18,7 @@
 #include <DallasTemperature.h>
 #include "SPIFFS.h"
 #include <string>
+#include <vector>
 
 bool intervalChanged = false; // Flag to indicate if the interval has changed
 
@@ -26,6 +27,24 @@ bool intervalChanged = false; // Flag to indicate if the interval has changed
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(ONE_WIRE_BUS);
+
+// Define a structure to store temperature readings and timestamps
+struct TemperatureReading
+{
+  String timestamp;
+  float temperature;
+};
+
+// Vector to store temperature readings
+std::vector<TemperatureReading> temperatureReadings;
+
+// Function to get the current timestamp as a String
+String getCurrentTimestamp()
+{
+  // Assuming you want a simple timestamp. Customize as needed.
+  unsigned long now = millis();
+  return String(now);
+}
 
 // Pass our oneWire reference to Dallas Temperature sensor
 DallasTemperature sensors(&oneWire);
@@ -46,24 +65,23 @@ const char *password = "RootjoHoxic3";
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+// Modify readDSTemperatureC to record readings
 String readDSTemperatureC()
 {
-  // Call sensors.requestTemperatures() to issue a global temperature and Requests to all devices on the bus
   sensors.requestTemperatures();
   float tempC = sensors.getTempCByIndex(0);
-
-  if (tempC == -127.00)
+  if (tempC == DEVICE_DISCONNECTED_C)
   {
     Serial.println("Failed to read from DS18B20 sensor");
     return "--";
   }
   else
   {
-    Serial.print("Temperature Celsius: ");
-    Serial.println(tempC);
-    temperatureCFloat = tempC;
+    // Use the function to get the current timestamp
+    String timestamp = getCurrentTimestamp();
+    temperatureReadings.push_back({timestamp, tempC});
+    return String(tempC);
   }
-  return String(tempC);
 }
 
 // Replaces placeholder with DS18B20 values
@@ -131,6 +149,21 @@ void setup()
     intervalChanged = true; // Set the flag
   }
   request->send(200, "text/plain", "Interval decreased"); });
+  // Endpoint to download data as CSV
+  server.on("/downloadCSV", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    String csvData = "Timestamp,Temperature\n";
+    for (const auto& reading : temperatureReadings) {
+        csvData += reading.timestamp + "," + String(reading.temperature) + "\n";
+    }
+    request->send(200, "text/csv", csvData); });
+
+  // Endpoint to reset the interval and clear the chart
+    server.on("/resetInterval", HTTP_GET, [](AsyncWebServerRequest *request) {
+    timerDelay = 10000; // Reset to default interval (e.g., 10 seconds)
+    temperatureReadings.clear(); // Clear the temperature readings vector
+    request->send(200, "text/plain", "Interval and chart data reset");
+});
   // Start server
   server.begin();
 }

@@ -45,6 +45,7 @@
     <button id="increaseInterval">Increase Interval</button>
     <button id="decreaseInterval">Decrease Interval</button>
     <button id="resetButton">Reset</button>
+    <button id="downloadCSV">Download Data as CSV</button>
     <div style="width: 80%; margin: 0 auto">
         <canvas id="temperatureChart"></canvas>
     </div>
@@ -108,6 +109,26 @@
         xhttp.send();
     });
 
+    // Event listener for CSV download button
+    document.getElementById("downloadCSV").addEventListener("click", function () {
+        fetch('/downloadCSV')
+            .then(response => response.text())
+            .then(data => {
+                // Create a blob from the data
+                const blob = new Blob([data], { type: 'text/csv' });
+                // Create a link to download it
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'temperature_data.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(console.error);
+    });
+
     // Event listener for decreasing the interval
     document.getElementById("decreaseInterval").addEventListener("click", function () {
         var xhttp = new XMLHttpRequest();
@@ -115,6 +136,7 @@
         xhttp.send();
     });
 
+    // Event listener for reset button
     document.getElementById("resetButton").addEventListener("click", function () {
         var xhttp = new XMLHttpRequest();
         xhttp.open("GET", "/resetInterval", true);
