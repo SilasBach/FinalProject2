@@ -1,36 +1,33 @@
-/*********
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com
-*********/
-
-// Import required libraries
+// Conditional Compilation for ESP32 and ESP8266
 #ifdef ESP32
-#include <WiFi.h>
-#include <ESPAsyncWebServer.h>
+  // Libraries specific to ESP32
+  #include <WiFi.h>
+  #include <ESPAsyncWebServer.h>
 #else
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <Hash.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+  // Libraries specific to ESP8266
+  #include <Arduino.h>
+  #include <ESP8266WiFi.h>
+  #include <Hash.h>
+  #include <ESPAsyncTCP.h>
+  #include <ESPAsyncWebServer.h>
 #endif
+
+// Common libraries for both ESP32 and ESP8266
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "SPIFFS.h"
 #include <string>
 #include <vector>
 
-bool intervalChanged = false; // Flag to indicate if the interval has changed
+// Global Variables
+bool intervalChanged = false; // Flag for interval change
+#define ONE_WIRE_BUS 4 // GPIO pin for DS18B20 data wire
 
-// Data wire is connected to GPIO 4
-#define ONE_WIRE_BUS 4
-
-// Setup a oneWire instance to communicate with any OneWire devices
+// OneWire instance for DS18B20 communication
 OneWire oneWire(ONE_WIRE_BUS);
 
-// Define a structure to store temperature readings and timestamps
-struct TemperatureReading
-{
+// Structure for temperature readings
+struct TemperatureReading {
   String timestamp;
   float temperature;
 };
@@ -38,96 +35,89 @@ struct TemperatureReading
 // Vector to store temperature readings
 std::vector<TemperatureReading> temperatureReadings;
 
-// Function to get the current timestamp as a String
-String getCurrentTimestamp()
-{
-  // Assuming you want a simple timestamp. Customize as needed.
-  unsigned long now = millis();
+// Function to get current timestamp as a String
+String getCurrentTimestamp() {
+  unsigned long now = millis(); // Get system uptime in milliseconds
   return String(now);
 }
 
-// Pass our oneWire reference to Dallas Temperature sensor
+// Dallas Temperature sensor setup
 DallasTemperature sensors(&oneWire);
 
-// Variables to store temperature values
+// Temperature variables
 String temperatureF = "";
 String temperatureC = "";
 float temperatureCFloat;
 
 // Timer variables
 unsigned long lastTime = 0;
-unsigned long timerDelay = 10000;
+unsigned long timerDelay = 10000; // 10-second default interval
 
-// Replace with your network credentials
 const char *ssid = "TN-EK6975";
 const char *password = "RootjoHoxic3";
 
-// Create AsyncWebServer object on port 80
+// AsyncWebServer on port 80
 AsyncWebServer server(80);
 
-// Modify readDSTemperatureC to record readings
-String readDSTemperatureC()
-{
-  sensors.requestTemperatures();
-  float tempC = sensors.getTempCByIndex(0);
-  if (tempC == DEVICE_DISCONNECTED_C)
-  {
+// Read temperature from DS18B20 sensor
+String readDSTemperatureC() {
+  sensors.requestTemperatures(); // Send command to get temperatures
+  float tempC = sensors.getTempCByIndex(0); // Read temperature in Celsius
+  if (tempC == DEVICE_DISCONNECTED_C) {
     Serial.println("Failed to read from DS18B20 sensor");
     return "--";
-  }
-  else
-  {
-    // Use the function to get the current timestamp
+  } else {
+    // Store temperature with timestamp
     String timestamp = getCurrentTimestamp();
     temperatureReadings.push_back({timestamp, tempC});
     return String(tempC);
   }
 }
 
-// Replaces placeholder with DS18B20 values
-String processor(const String &var)
-{
-  // Serial.println(var);
-  if (var == "TEMPERATUREC")
-  {
+// Processor function for web server placeholders
+String processor(const String& var) {
+  if (var == "TEMPERATUREC") {
     return temperatureC;
   }
   return String();
 }
 
-void setup()
-{
-  // Serial port for debugging purposes
+void setup() {
+  // Serial setup for debugging
   Serial.begin(115200);
 
-  if (!SPIFFS.begin(true))
-  {
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
 
-  Serial.println();
-
-  // Start up the DS18B20 library
+  // Initialize DS18B20 sensor
   sensors.begin();
-
   temperatureC = readDSTemperatureC();
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println();
+  Serial.println("\nConnected to WiFi");
 
-  // Print ESP Local IP Address
+  // Print ESP IP Address
   Serial.println(WiFi.localIP());
 
-  // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+  // Web server routes
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(SPIFFS, "/index.html", String(), false, processor);
+  });
+
+  server.on("/temperaturec", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", temperatureC.c_str());
+  });
+
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index.html", String(), false, processor); });
   server.on("/temperaturec", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(200, "text/plain", temperatureC.c_str()); });
@@ -149,6 +139,7 @@ void setup()
     intervalChanged = true; // Set the flag
   }
   request->send(200, "text/plain", "Interval decreased"); });
+  
   // Endpoint to download data as CSV
   server.on("/downloadCSV", HTTP_GET, [](AsyncWebServerRequest *request)
             {
@@ -164,24 +155,20 @@ void setup()
     temperatureReadings.clear(); // Clear the temperature readings vector
     request->send(200, "text/plain", "Interval and chart data reset");
 });
+
   // Start server
   server.begin();
 }
 
-void loop()
-{
-  // Check if the interval has changed or the timer has elapsed
-  if (intervalChanged || (millis() - lastTime > timerDelay))
-  {
-    if (intervalChanged)
-    {
-      intervalChanged = false; // Reset the flag
-      lastTime = millis();     // Reset the timer
-    }
-    else
-    {
-      temperatureC = readDSTemperatureC(); // Update the temperature
-      lastTime = millis();                 // Reset the timer
+void loop() {
+  // Regular interval check for temperature update
+  if (intervalChanged || (millis() - lastTime > timerDelay)) {
+    if (intervalChanged) {
+      intervalChanged = false;
+      lastTime = millis();
+    } else {
+      temperatureC = readDSTemperatureC();
+      lastTime = millis();
     }
   }
 }

@@ -5,47 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css"
         integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        html {
-            font-family: Arial;
-            display: inline-block;
-            margin: 0px auto;
-            text-align: center;
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
         h2 {
-            font-size: 3rem;
+            color: #059e8a;
         }
 
-        p {
-            font-size: 3rem;
+        button {
+            background-color: #059e8a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
         }
 
-        .units {
-            font-size: 1.2rem;
+        button:hover {
+            background-color: #047a6c;
         }
 
-        .ds-labels {
-            font-size: 1.5rem;
-            vertical-align: middle;
-            padding-bottom: 15px;
+        .card {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .temperature-display {
+            font-size: 2rem;
+            color: #059e8a;
         }
     </style>
 </head>
 
 <body>
-    <h2>ESP DS18B20 Server</h2>
-    <p>
-        <i class="fas fa-thermometer-half" style="color: #059e8a"></i>
-        <span class="ds-labels">Temperature Celsius</span>
-        <span id="temperaturec">%TEMPERATUREC%</span>
-        <sup class="units">&deg;C</sup>
-    </p>
-    <p id="intervalDisplay">Interval: </p>
-    <button id="increaseInterval">Increase Interval</button>
-    <button id="decreaseInterval">Decrease Interval</button>
-    <button id="resetButton">Reset</button>
-    <button id="downloadCSV">Download Data as CSV</button>
+    <div class="container">
+        <h2>ESP DS18B20 Temperature Monitor</h2>
+        <div class="card">
+            <p>
+                <i class="fas fa-thermometer-half"></i>
+                <span class="temperature-display" id="temperaturec">%TEMPERATUREC%</span>
+                <sup class="units">&deg;C</sup>
+            </p>
+            <p id="intervalDisplay">Interval: </p>
+            <button id="increaseInterval">Increase Interval</button>
+            <button id="decreaseInterval">Decrease Interval</button>
+            <button id="resetButton">Reset</button>
+            <button id="downloadCSV">Download CSV</button>
+        </div>
+    </div>
     <div style="width: 80%; margin: 0 auto">
         <canvas id="temperatureChart"></canvas>
     </div>
